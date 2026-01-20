@@ -1,0 +1,7 @@
+python-telegram-bot==20.7
+requests
+PyPDF2
+python-docx
+openpyxl
+Pillow
+gigachat
