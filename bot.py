@@ -134,14 +134,7 @@ class MedicalAnalysisBot:
             await message.reply_text(analysis_result)
             
         except Exception as e:
-            # Log document processing error to both logger and log.txt file
-            error_msg = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Error processing document {message.document.file_name}: {e}"
-            logger.error(error_msg)
-            
-            # Write to log.txt file
-            with open('log.txt', 'a', encoding='utf-8') as log_file:
-                log_file.write(error_msg + "\n")
-                
+            logger.error(f"Error processing document: {e}")
             await message.reply_text("Произошла ошибка при обработке документа. Попробуйте снова.")
         finally:
             # Clean up temporary file
@@ -195,14 +188,7 @@ class MedicalAnalysisBot:
             await message.reply_text(analysis_result)
             
         except Exception as e:
-            # Log photo processing error to both logger and log.txt file
-            error_msg = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Error processing photo: {e}"
-            logger.error(error_msg)
-            
-            # Write to log.txt file
-            with open('log.txt', 'a', encoding='utf-8') as log_file:
-                log_file.write(error_msg + "\n")
-                
+            logger.error(f"Error processing photo: {e}")
             await message.reply_text("Произошла ошибка при обработке изображения. Попробуйте снова.")
         finally:
             # Clean up temporary file
@@ -232,22 +218,11 @@ class MedicalAnalysisBot:
                 return '\n'.join(full_text)
                 
             elif ext in ['.pdf']:
-                try:
-                    reader = PdfReader(file_path)
-                    text = ""
-                    for page in reader.pages:
-                        text += page.extract_text() + "\n"
-                    return text
-                except Exception as pdf_error:
-                    # Log PDF-specific error to both logger and log.txt file
-                    error_msg = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Error processing PDF {filename}: {pdf_error}"
-                    logger.error(error_msg)
-                    
-                    # Write to log.txt file
-                    with open('log.txt', 'a', encoding='utf-8') as log_file:
-                        log_file.write(error_msg + "\n")
-                    
-                    return None
+                reader = PdfReader(file_path)
+                text = ""
+                for page in reader.pages:
+                    text += page.extract_text() + "\n"
+                return text
                 
             elif ext in ['.xls', '.xlsx']:
                 workbook = openpyxl.load_workbook(file_path, data_only=True)
@@ -267,14 +242,7 @@ class MedicalAnalysisBot:
                 return None
                 
         except Exception as e:
-            # Log general error to both logger and log.txt file
-            error_msg = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Error extracting text from {filename}: {e}"
-            logger.error(error_msg)
-            
-            # Write to log.txt file
-            with open('log.txt', 'a', encoding='utf-8') as log_file:
-                log_file.write(error_msg + "\n")
-                
+            logger.error(f"Error extracting text from {filename}: {e}")
             return None
     
     def analyze_with_gigachat(self, text_content):
@@ -311,10 +279,7 @@ class MedicalAnalysisBot:
             # Get response from GigaChat
             response = giga.chat(chat)
             
-            # Format the response with emojis and formatting
-            formatted_response = self.format_gigachat_response(response.choices[0].message.content)
-
-            return formatted_response
+            return response.choices[0].message.content
             
         except Exception as e:
             logger.error(f"Error calling GigaChat: {e}")
@@ -323,37 +288,6 @@ class MedicalAnalysisBot:
                 "Пожалуйста, попробуйте снова позже."
             )
     
-    def format_gigachat_response(self, text):
-        """Format the GigaChat response with emojis and proper formatting."""
-        import re
-        
-        # Replace markdown headers with emojis
-        text = re.sub(r'^##\s+(.*)', r'🔬 **\1**', text, flags=re.MULTILINE)
-        text = re.sub(r'^###\s+(.*)', r'💊 \1', text, flags=re.MULTILINE)
-        text = re.sub(r'^####\s+(.*)', r'🧪 \1', text, flags=re.MULTILINE)
-        
-        # Find analysis names (typically followed by numbers/values) and underline them
-        # This pattern looks for capitalized words or letter combinations that are likely test names
-        text = re.sub(r'([A-Z][A-Za-zА-Яа-яЁё\s\-\(\)]+?)\s*(:\s*[0-9.,\-\s\w\(\)<>≥≤\[\]]+[^\n\r]*(?:\n|$))', r'___\1___\2', text)
-        
-        # Find the disclaimer text about self-treatment and make it italic
-        text = re.sub(
-            r'(Самолечение недопустимо[^\n\r.]*[.\n\r]*)',
-            r'*\1*',
-            text,
-            flags=re.IGNORECASE | re.MULTILINE
-        )
-        
-        # Look for other variations of the disclaimer
-        text = re.sub(
-            r'((?:пользователь\s*не\s*должен|не\s*следует\s*заниматься)\s*(?:самолечением|лечением\s*без\s*врача)[^\n\r.]*[.\n\r]*)',
-            r'*\1*',
-            text,
-            flags=re.IGNORECASE | re.MULTILINE
-        )
-        
-        return text
-
     def run_bot(self):
         """Start the bot."""
         application = Application.builder().token(self.bot_token).build()
