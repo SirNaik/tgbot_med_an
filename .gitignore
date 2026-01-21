@@ -1,6 +1,18 @@
 ```
+# Compiled and build artifacts
+*.pyc
+__pycache__/
+
+# Dependencies
+.venv/
+venv/
+pip-log.txt
+pipenv.lock
+
 # Logs and temp files
 *.log
+*.tmp
+*.swp
 
 # Environment
 .env
@@ -9,4 +21,21 @@
 
 # Editors
 .vscode/
+.idea/
+*.swp
+*.swo
+
+# Coverage reports
+.coverage
+coverage/
+htmlcov/
+
+# Testing
+.pytest_cache/
+.mypy_cache/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
 ```
