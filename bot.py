@@ -1,15 +1,20 @@
 import os
 import logging
+from datetime import datetime
+from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from gigachat import GigaChat
-from gigachat.models import Chat, Messages, SystemMessage, UserMessage
+from gigachat.models import Chat, Messages, MessagesRole
 import tempfile
 from docx import Document
 from PyPDF2 import PdfReader
 import openpyxl
 from PIL import Image
 import io
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Enable logging
 logging.basicConfig(
@@ -32,6 +37,34 @@ if GIGACHAT_CREDENTIALS and GIGACHAT_SCOPE:
 else:
     logger.warning("GigaChat credentials not found. Please set GIGACHAT_CREDENTIALS and GIGACHAT_SCOPE environment variables.")
 
+def log_user_interaction(user_id, user_name, username=None, file_type=None):
+    """Log user interaction to users.txt file"""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Check if this is the user's first request
+    is_first_request = True
+    request_count = 1
+    
+    # Read existing data to check if user already exists
+    if os.path.exists('users.txt'):
+        with open('users.txt', 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+            for line in lines:
+                parts = line.strip().split('|')
+                if len(parts) >= 3 and parts[0] == str(user_id):
+                    is_first_request = False
+                    # Get the current count and increment
+                    request_count = int(parts[6]) + 1 if len(parts) >= 7 else 2
+                    break
+    
+    request_type = "first" if is_first_request else "repeat"
+    
+    # Format: user_id|user_name|username|timestamp|file_type|request_type|total_requests
+    log_entry = f"{user_id}|{user_name}|{username or 'N/A'}|{timestamp}|{file_type or 'N/A'}|{request_type}|{request_count}\n"
+    
+    with open('users.txt', 'a', encoding='utf-8') as f:
+        f.write(log_entry)
+
 class MedicalAnalysisBot:
     def __init__(self):
         self.bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -40,6 +73,16 @@ class MedicalAnalysisBot:
         
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Send a welcome message when the command /start is issued."""
+        user = update.effective_user
+        
+        # Log user interaction
+        log_user_interaction(
+            user_id=user.id, 
+            user_name=f"{user.first_name} {user.last_name or ''}".strip(), 
+            username=user.username,
+            file_type='start_command'
+        )
+        
         welcome_message = (
             "Привет! 🏥\n\n"
             "Этот бот умеет расшифровывать медицинские лабораторные анализы.\n"
@@ -54,6 +97,15 @@ class MedicalAnalysisBot:
         """Handle document uploads and send to GigaChat for analysis."""
         user = update.effective_user
         message = update.message
+        
+        # Log user interaction
+        file_extension = os.path.splitext(message.document.file_name)[1]
+        log_user_interaction(
+            user_id=user.id, 
+            user_name=f"{user.first_name} {user.last_name or ''}".strip(), 
+            username=user.username,
+            file_type=file_extension
+        )
         
         # Inform user that processing has started
         processing_msg = await message.reply_text("Обрабатываю документ... Подождите немного.")
@@ -99,6 +151,14 @@ class MedicalAnalysisBot:
         """Handle photo uploads and send to GigaChat for analysis."""
         user = update.effective_user
         message = update.message
+        
+        # Log user interaction
+        log_user_interaction(
+            user_id=user.id, 
+            user_name=f"{user.first_name} {user.last_name or ''}".strip(), 
+            username=user.username,
+            file_type='image'
+        )
         
         # Inform user that processing has started
         processing_msg = await message.reply_text("Обрабатываю изображение... Подождите немного.")
@@ -208,7 +268,7 @@ class MedicalAnalysisBot:
             # Create the chat message
             chat = Chat(
                 messages=[
-                    UserMessage(content=prompt)
+                    Messages(role=MessagesRole.USER, content=prompt)
                 ]
             )
             

@@ -15,6 +15,7 @@ This Telegram bot uses GigaChat AI to interpret medical laboratory test results.
 - Python 3.8+
 - Telegram Bot Token
 - GigaChat API credentials
+- python-dotenv (included in requirements.txt)
 
 ## Installation
 
